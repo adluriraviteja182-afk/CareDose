@@ -1,0 +1,5 @@
+# Optional: better tablet recognition (MobileNetV2) and Whisper voice input.
+# The app runs without these, using an OpenCV colour-histogram fallback and browser speech input.
+torch
+torchvision
+faster-whisper
