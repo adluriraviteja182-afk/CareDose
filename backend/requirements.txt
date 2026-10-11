@@ -11,3 +11,4 @@ numpy<2.3
 pillow
 python-dotenv==1.0.1
 pywebpush>=2.0.0,<3
+psycopg2-binary==2.9.10

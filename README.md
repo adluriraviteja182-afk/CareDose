@@ -31,6 +31,20 @@ For a single-server demo run `npm run build`, then open http://localhost:8000 (F
 > Use `localhost` or HTTPS. Browsers block the camera, microphone and notifications on plain http over a network IP.
 > To demo on a phone, use an HTTPS tunnel (for example `ngrok http 8000` after `npm run build`).
 
+**Deploying online (Vercel + Render):** see [DEPLOY.md](DEPLOY.md).
+
+## Alarms and notifications
+- **At dose time** the app rings a repeating alarm, opens the camera next to your tablet photo, speaks the reminder, and vibrates on phones. *Silence* stops the sound, *Remind me in 10 minutes* snoozes it. It stops by itself after 1 minute.
+- **When CareDose is closed:** the backend sends a Web Push (service worker `frontend/public/sw.js`, server `app/push.py`). A sticky notification appears; tapping it opens the app, which then opens the camera.
+- Press **Turn on alarms** on the Today page once. It asks for camera + notification permission and registers the device. **Test alarm** and **Test notification** buttons then check each part.
+- Browsers keep sound locked until you tap the page once after opening it. The alarm screen says so if that happens.
+- Push needs `pip install -r requirements.txt` (adds `pywebpush`). The first run creates `backend/vapid_private.pem`. Keep it private; deleting it makes every device re-subscribe.
+- Push works on `localhost` in Chrome/Edge. On a phone it needs HTTPS (for example an `ngrok` tunnel). Chrome must be running in the background on desktop. If the computer is asleep nothing can ring.
+
+## Prescription upload
+- **Medicines page → Your prescription:** upload a photo or PDF (max 8 MB). Files are stored in `backend/private_uploads/` and only served through a login-protected endpoint to the owner, approved caregivers and pharmacists.
+- **Read medicines** (needs a Gemini key) turns the document into a *draft* list. The patient checks it, presses *Use this*, edits the form, and saves. Medicines saved this way are flagged **Verify AI reading** in the pharmacist's review queue.
+
 ## Demo script
 1. Log in as the patient and click **Turn on camera & alerts** once (Chrome asks for permission). Two reminders fire within about 6 minutes. At each dose time the **camera opens by itself** next to your saved tablet photo, with a spoken prompt and a browser notification.
 2. Hold the tablet in the frame and tap **Check tablet** (or tap **Take medicine** on the dashboard any time). A match marks the dose Taken; points, streak and badges update. (Seed photos are plain graphics: show the image on another screen.)

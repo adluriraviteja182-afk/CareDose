@@ -8,6 +8,8 @@ from .db import get_db
 from .models import User, CaregiverLink
 
 SECRET = os.getenv("SECRET_KEY", "dev-secret-change-me")
+if os.getenv("APP_ENV") == "production" and SECRET == "dev-secret-change-me":
+    raise RuntimeError("Set a strong SECRET_KEY environment variable before running in production.")
 bearer = HTTPBearer(auto_error=False)
 
 

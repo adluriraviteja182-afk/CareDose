@@ -8,6 +8,7 @@ from .models import (Prescription, DoseEvent, Conflict, Gamification, Notificati
 
 GRACE_MIN = int(os.getenv("GRACE_MINUTES", "30"))
 ON_TIME_MIN = 30
+STALE_ALERT = timedelta(hours=3)  # missed doses older than this are not announced to caregivers
 LEVELS = [(0, "Beginner"), (100, "Healthy Hero"), (500, "Medication Master"), (1000, "Health Champion")]
 
 
@@ -183,10 +184,12 @@ def send_email(to: str, subject: str, body: str):
         print("[email error]", e)
 
 
-def mark_missed(db: Session, dose: DoseEvent):
+def mark_missed(db: Session, dose: DoseEvent, notify: bool = True):
     dose.status = "missed"
     g = get_g(db, dose.patient_id)
     g.streak = 0
+    if not notify:
+        return
     p = db.get(Prescription, dose.prescription_id)
     patient = db.get(User, dose.patient_id)
     notify_caregivers(db, dose.patient_id,
@@ -197,9 +200,11 @@ def missed_dose_job(SessionLocal):
     """Runs every minute: pending doses past the grace window become missed."""
     db = SessionLocal()
     try:
-        cutoff = datetime.now() - timedelta(minutes=GRACE_MIN)
+        now = datetime.now()
+        cutoff = now - timedelta(minutes=GRACE_MIN)
         for d in db.query(DoseEvent).filter(DoseEvent.status == "pending", DoseEvent.scheduled_at < cutoff).all():
-            mark_missed(db, d)
+            # After downtime, doses from hours ago are recorded as missed but do not alert the family about old news.
+            mark_missed(db, d, notify=d.scheduled_at >= now - STALE_ALERT)
         db.commit()
     finally:
         db.close()

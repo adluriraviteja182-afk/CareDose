@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Navigate, Route, Routes, useNavigate } from "react-router-dom";
-import { api, getToken, setToken } from "./api";
+import { api, getToken, setToken, asset } from "./api";
 import { Ctx } from "./ctx";
 import { LANGS, makeT, speak } from "./i18n";
 import { CameraCheck, Icon } from "./components.jsx";
@@ -61,7 +61,7 @@ export default function App() {
           shown.current.add(next.id);
           setCamDose((cur) => cur || { dose: next, reminder: true }); // camera + alarm start by themselves
           speak(`${t("timeFor")}. ${next.medicine}. ${next.dosage}`, lang);
-          if (document.hidden) showNotice(t("timeFor"), { body: `${next.medicine} · ${next.dosage}`, icon: next.image_url || undefined, tag: `dose-${next.id}`, data: { url: "/" } });
+          if (document.hidden) showNotice(t("timeFor"), { body: `${next.medicine} · ${next.dosage}`, icon: asset(next.image_url) || undefined, tag: `dose-${next.id}`, data: { url: "/" } });
         }
       } catch {}
     };

@@ -1,18 +1,11 @@
-__pycache__/
-*.py[cod]
-.venv/
-venv/
-node_modules/
-dist/
-
+# never commit secrets or generated files
 .env
-.env.*
-!.env.example
+.env.local
 *.pem
-
-*.db
-*.sqlite
-*.sqlite3
+backend/.venv/
+backend/caredose.db
 backend/uploads/*
-!backend/uploads/.gitkeep
-backend/private_uploads/*
+backend/private_uploads/
+__pycache__/
+frontend/node_modules/
+frontend/dist/

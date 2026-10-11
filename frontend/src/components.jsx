@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { api, timeOf } from "./api";
+import { api, timeOf, asset } from "./api";
 import { startAlarm, stopAlarm, unlockAudio, audioReady } from "./alarm";
 import { ensurePush } from "./push";
 import { useApp } from "./ctx";
@@ -31,7 +31,11 @@ export const Icon = ({ name, size = 20 }) => (
 );
 
 export function PillImg({ url }) {
-  return url ? <img className="pill-img" src={url} alt="Tablet" /> : <div className="pill-img" aria-hidden>💊</div>;
+  const [bad, setBad] = useState(false);
+  useEffect(() => setBad(false), [url]);
+  return url && !bad
+    ? <img className="pill-img" src={asset(url)} alt="Tablet" onError={() => setBad(true)} />
+    : <div className="pill-img" aria-hidden>💊</div>;
 }
 
 export function Ring({ pct, size = 132, stroke = 12 }) {
@@ -192,9 +196,7 @@ export function PermissionPrompt({ camera = true }) {
   if (camOk && notifOk) return (
     <div className="statusrow">
       <span>✅ Alarm, {camera ? "camera and " : ""}alerts are on</span>
-      <span className="row"><button className="ghost" onClick={testAlarm}>🔔 Test alarm</button>
-      {/* <button className="ghost" onClick={testPush}>📲 Test notification</button> */}
-      </span>
+      <span className="row"><button className="ghost" onClick={testAlarm}>🔔 Test alarm</button><button className="ghost" onClick={testPush}>📲 Test notification</button></span>
       {msg && <div className={msg.k} style={{ flexBasis: "100%", margin: 0 }} role="status">{msg.t}</div>}
     </div>);
   return (

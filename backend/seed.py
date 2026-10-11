@@ -13,7 +13,8 @@ db = SessionLocal()
 if db.query(User).filter_by(email="patient@demo.com").first():
     print("Demo data already exists."); raise SystemExit
 
-up = os.path.join(os.path.dirname(__file__), "uploads"); os.makedirs(up, exist_ok=True)
+from app.db import DATA_DIR
+up = str(DATA_DIR / "uploads"); os.makedirs(up, exist_ok=True)
 
 
 def tablet(name, color, capsule=False):
@@ -41,6 +42,7 @@ for med, dose, times, img, days, ago in courses:
     p = Prescription(patient_id=pat.id, medicine=med, dosage=dose, times=",".join(times), frequency=len(times),
                      duration_days=days, start_date=date.today() - timedelta(days=ago), image_path=img, status="active")
     db.add(p); db.flush(); svc.generate_doses(db, p)
+    db.flush()  # the doses must be in the database before we can look them up to mark them
     if ago:  # give the running course some history: taken, with one missed dose
         past = db.query(DoseEvent).filter(DoseEvent.prescription_id == p.id, DoseEvent.scheduled_at < now - timedelta(minutes=5)) \
                  .order_by(DoseEvent.scheduled_at).all()

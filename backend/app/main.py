@@ -7,20 +7,22 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 from apscheduler.schedulers.background import BackgroundScheduler
 
-from .db import Base, engine, get_db, SessionLocal
+from .db import Base, engine, get_db, SessionLocal, DATA_DIR
 from .models import *
 from .security import hash_password, verify_password, make_token, current_user, resolve_patient
 from . import services as svc, ai, push
 from fastapi.responses import FileResponse
 
-DOC_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "private_uploads")  # prescriptions: NOT publicly served
+DOC_DIR = str(DATA_DIR / "private_uploads")  # prescriptions: NOT publicly served
 os.makedirs(DOC_DIR, exist_ok=True)
-UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
+UPLOAD_DIR = str(DATA_DIR / "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 Base.metadata.create_all(engine)
 
 app = FastAPI(title="CareDose API")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+# In production set CORS_ORIGINS to your website address, e.g. https://caredose.vercel.app (comma-separate several)
+_origins = [o.strip().rstrip("/") for o in os.getenv("CORS_ORIGINS", "*").split(",") if o.strip()]
+app.add_middleware(CORSMiddleware, allow_origins=_origins, allow_methods=["*"], allow_headers=["*"])
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 
@@ -121,6 +123,11 @@ def apply_prescription(p: Prescription, data: PrescriptionIn):
     p.duration_days = data.duration_days
     p.start_date = data.start_date or date.today()
     p.status = "incomplete" if svc.missing_fields(p) else "active"
+
+
+@app.get("/api/health")
+def health():
+    return {"ok": True}
 
 
 # ---------- auth ----------

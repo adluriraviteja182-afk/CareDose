@@ -79,8 +79,7 @@ remind about upcoming doses, and say in ONE plain sentence what a medicine is ge
 (general information, not advice for this patient), then add that their doctor knows why it was prescribed.
 Use plain text, no markdown. You MUST NOT: give medical advice, diagnose, suggest changes to doses, timing,
 or medicines, suggest alternatives, or discuss side effects or interactions. For any such question reply that the patient
-must ask their doctor or pharmacist. Keep replies short, calm and simple.
-Give suggestion on based on the tablet what they are using for which purpose also and suggest time. Reply in {lang}.
+must ask their doctor or pharmacist. Keep replies short, calm and simple. Reply in {lang}.
 
 Patient's schedule:
 {context}"""
@@ -187,20 +186,13 @@ def _offline_reply(db: Session, pid: int, message: str) -> str:
 GEMINI_FALLBACKS = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"]
 
 
-def _gemini(system: str, history: list, message: str, key: str) -> str:
+def gemini_text(body: dict, key: str) -> str:
+    """POST a request to Gemini, trying the configured model and then newer ones if it was retired."""
     wanted = os.getenv("GEMINI_MODEL", "").strip()
-    models = [m for m in dict.fromkeys([wanted, *GEMINI_FALLBACKS]) if m]
-    turns = [{"role": "model" if h.get("role") == "model" else "user", "parts": [{"text": str(h.get("text", ""))[:1000]}]}
-             for h in (history or [])[-6:] if h.get("text")]
-    while turns and turns[0]["role"] == "model":  # Gemini wants the conversation to start with the user
-        turns.pop(0)
-    body = {"system_instruction": {"parts": [{"text": system}]},
-            "contents": turns + [{"role": "user", "parts": [{"text": message}]}],
-            "generationConfig": {"temperature": 0.3}}
     last = ""
-    for model in models:
+    for model in [m for m in dict.fromkeys([wanted, *GEMINI_FALLBACKS]) if m]:
         r = httpx.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-                       headers={"x-goog-api-key": key}, json=body, timeout=25)
+                       headers={"x-goog-api-key": key}, json=body, timeout=60)
         if r.status_code == 404:
             last = f"model {model} not found"
             continue
@@ -216,6 +208,48 @@ def _gemini(system: str, history: list, message: str, key: str) -> str:
             return text
         last = f"{model} returned an empty reply"
     raise RuntimeError(last or "no Gemini model answered")
+
+
+def _gemini(system: str, history: list, message: str, key: str) -> str:
+    turns = [{"role": "model" if h.get("role") == "model" else "user", "parts": [{"text": str(h.get("text", ""))[:1000]}]}
+             for h in (history or [])[-6:] if h.get("text")]
+    while turns and turns[0]["role"] == "model":  # Gemini wants the conversation to start with the user
+        turns.pop(0)
+    return gemini_text({"system_instruction": {"parts": [{"text": system}]},
+                        "contents": turns + [{"role": "user", "parts": [{"text": message}]}],
+                        "generationConfig": {"temperature": 0.3}}, key)
+
+
+# ---------- reading a prescription photo/PDF (a DRAFT the patient must check) ----------
+RX_PROMPT = """You are reading a photo or PDF of a doctor's prescription for a medicine reminder app.
+Extract each prescribed medicine. Return ONLY a JSON array. Each item has exactly:
+{"medicine": string, "dosage": string (strength and amount, e.g. "500 mg, 1 tablet"), "times": ["HH:MM", ...], "duration_days": integer, "notes": string (e.g. "after food")}
+Convert how often to clock times: once daily or morning 08:00; twice daily (BD, 1-0-1) 08:00 and 20:00; three times (TDS, 1-1-1) 08:00, 14:00 and 20:00;
+four times (QID) 08:00, 12:00, 16:00 and 20:00; at night (HS) 21:00. Convert durations to days (weeks x7, months x30).
+If something is unclear or unreadable use "" for text, [] for times, 0 for days. Never guess or invent a medicine.
+If the image is not a prescription, return []."""
+
+
+def read_prescription(data: bytes, mime: str, key: str) -> list:
+    import base64, json as _json
+    text = gemini_text({"contents": [{"role": "user", "parts": [{"text": RX_PROMPT}, {"inline_data": {"mime_type": mime, "data": base64.b64encode(data).decode()}}]}],
+                        "generationConfig": {"temperature": 0, "responseMimeType": "application/json"}}, key)
+    text = re.sub(r"^```(?:json)?|```$", "", text.strip(), flags=re.M).strip()
+    arr = _json.loads(text)
+    if isinstance(arr, dict):
+        arr = arr.get("medicines", [])
+    out = []
+    for it in arr if isinstance(arr, list) else []:
+        if not isinstance(it, dict) or not str(it.get("medicine", "")).strip():
+            continue
+        times = [t for t in (it.get("times") or []) if isinstance(t, str) and re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", t)]
+        try:
+            days = max(0, min(365, int(it.get("duration_days") or 0)))
+        except (TypeError, ValueError):
+            days = 0
+        out.append({"medicine": str(it["medicine"]).strip()[:80], "dosage": str(it.get("dosage") or "")[:80], "times": times,
+                    "duration_days": days, "notes": str(it.get("notes") or "")[:120]})
+    return out
 
 
 def chat_reply(db: Session, patient_id: int, message: str, lang: str, history: list | None = None) -> dict:

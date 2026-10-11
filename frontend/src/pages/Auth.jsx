@@ -7,12 +7,12 @@ import { Icon } from "../components.jsx";
 // ✏️ EDIT THIS: your details appear in the "Developer" section of the home page.
 // Leave email / github / linkedin as "" to hide that link.
 const DEVELOPER = {
-  name: "Healorithm Team",
-  role: "CareDose Developer",
-  about: "We built CareDose so that nobody has to wonder whether they took their medicine. It combines simple reminders, a camera check, and family support in one easy app.",
-  email: "adluriraviteja182@gmail.com",
-  github: "https://github.com/Healorithm",
-  linkedin: "https://www.linkedin.com/company/healorithm",
+  name: "Your Name",
+  role: "Full-stack developer · CareDose",
+  about: "I built CareDose so that nobody has to wonder whether they took their medicine. It combines simple reminders, a camera check, and family support in one easy app.",
+  email: "",
+  github: "",
+  linkedin: "",
 };
 
 const FEATURES = [

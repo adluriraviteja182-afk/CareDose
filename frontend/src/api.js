@@ -1,3 +1,8 @@
+// In production the website (Vercel) and the backend (Render) have different addresses.
+// Set VITE_API_URL when building (see frontend/.env.example). In development leave it empty: Vite proxies /api.
+export const API = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
+export const asset = (u) => (u && u.startsWith("/") ? API + u : u); // tablet photos live on the backend
+
 // Thin fetch wrapper. Token lives in localStorage; errors become readable messages.
 export const getToken = () => localStorage.getItem("cd_token");
 export const setToken = (t) => (t ? localStorage.setItem("cd_token", t) : localStorage.removeItem("cd_token"));
@@ -6,7 +11,9 @@ export async function api(path, { method = "GET", body, form } = {}) {
   const headers = {};
   if (getToken()) headers.Authorization = `Bearer ${getToken()}`;
   if (body) headers["Content-Type"] = "application/json";
-  const res = await fetch(path, { method, headers, body: form || (body ? JSON.stringify(body) : undefined) });
+  let res;
+  try { res = await fetch(API + path, { method, headers, body: form || (body ? JSON.stringify(body) : undefined) }); }
+  catch { throw new Error("Cannot reach the server. If it has been idle, wait about a minute and try again."); }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     if (res.status === 401) setToken(null);
@@ -23,7 +30,7 @@ export const timeOf = (iso) => new Date(iso).toLocaleTimeString([], { hour: "2-d
 export async function openFile(path) {
   const w = window.open("", "_blank");
   try {
-    const res = await fetch(path, { headers: { Authorization: `Bearer ${getToken()}` } });
+    const res = await fetch(API + path, { headers: { Authorization: `Bearer ${getToken()}` } });
     if (!res.ok) throw new Error("Could not open the file");
     const url = URL.createObjectURL(await res.blob());
     if (w) w.location = url; else window.location = url;
