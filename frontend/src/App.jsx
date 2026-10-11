@@ -14,7 +14,7 @@ import Report from "./pages/Report.jsx";
 import Family from "./pages/Family.jsx";
 import Review from "./pages/Review.jsx";
 import Calendar from "./pages/Calendar.jsx";
-import Play from "./pages/Play.jsx";
+import Play from "./pages/play.jsx";
 
 export default function App() {
   const [user, setUser] = useState(null);
